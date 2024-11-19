@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>마녀의 잼</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #ingredients, #jam, #inventory, #store, #beakerContainer {
+            margin-bottom: 20px;
+        }
+        .ingredient {
+            display: inline-block;
+            margin: 5px;
+            padding: 10px;
+            background-color: #f2f2f2;
+            cursor: move;
+            border: 1px solid #ccc;
+        }
+        #beakerContainer {
+            position: relative;
+            width: 300px;
+            height: 400px;
+            border: 2px solid #000;
+            background-color: #e6f7ff;
+            overflow: hidden;
+        }
+        #beaker {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #madeJam ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        #madeJam li {
+            background-color: #ffe6e6;
+            margin: 5px 0;
+            padding: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin-top: 10px;
+        }
+        #mixButton {
+            position: relative;
+        }
+        #mixButton:active {
+            background-color: #ccc;
+        }
+    </style>
+    <!-- Matter.js 라이브러리 로드 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.17.1/matter.min.js"></script>
+</head>
+<body>
+    <h1>마녀의 잼</h1>
+    <p>돈: ₩<span id="money">100</span></p>
+    <p>빚: ₩<span id="debt">100000000</span></p>
+    <button onclick="repayDebt()">빚 상환하기</button>
+    <button onclick="bankrupt()">파산하기</button>
+
+
+    <div id="store">
+        <h2>재료 상점</h2>
+        <div id="ingredientList"></div>
+        <button onclick="unlockIngredient()">재료 해금 (₩<span id="unlockCost">100</span>)</button>
+    </div>
+
+    <div id="inventory">
+        <h2>내 재료</h2>
+        <div id="inventoryList"></div>
+    </div>
+
+    <div id="jam">
+        <h2>잼 만들기</h2>
+        <button id="mixButton">잼 섞기 (눌러서 섞기)</button>
+        <div id="beakerContainer">
+            <canvas id="beaker"></canvas>
+        </div>
+    </div>
+
+    <div id="madeJam">
+        <h2>만든 잼</h2>
+        <ul id="jamList"></ul>
+        <button onclick="sellJam()">잼 판매하기</button>
+    </div>
+
+
+    <script>
+        let money = 100;
+        let debt = 100000000;
+        let unlockCost = 100;
+        let ingredients = [
+            { name: "딸기", price: 5, color: "#ff4d4d", unlocked: false },
+            { name: "블루베리", price: 4, color: "#4d4dff", unlocked: false },
+            { name: "설탕", price: 2, color: "#ffffff", unlocked: true },
+            { name: "마법의 허브", price: 10, color: "#66ff66", unlocked: false },
+            { name: "레몬", price: 3, color: "#ffff66", unlocked: false },
+            { name: "체리", price: 6, color: "#ff66b3", unlocked: false },
+            { name: "호박", price: 7, color: "#ff9933", unlocked: false },
+            { name: "자몽", price: 8, color: "#ffcc99", unlocked: false },
+            { name: "키위", price: 5, color: "#99cc33", unlocked: false },
+            { name: "망고", price: 6, color: "#ffc34d", unlocked: false },
+            { name: "바나나", price: 4, color: "#ffff99", unlocked: false },
+            { name: "복숭아", price: 7, color: "#ffcc99", unlocked: false },
+            { name: "사과", price: 5, color: "#ff6666", unlocked: false },
+            { name: "포도", price: 6, color: "#9966cc", unlocked: false },
+            { name: "라임", price: 4, color: "#99ff99", unlocked: false },
+            { name: "파인애플", price: 8, color: "#ffff66", unlocked: false },
+            { name: "오렌지", price: 5, color: "#ffcc66", unlocked: false },
+            { name: "코코넛", price: 9, color: "#ffffff", unlocked: false }
+        ];
+        let inventory = [];
+        let beakerIngredients = [];
+        let jamInventory = [];
+        let ingredientIdCounter = 0;
+        let unlockedIngredientCount = 1; // 처음에 설탕만 해금되어 있음
+
+        // Matter.js 설정
+        let Engine = Matter.Engine,
+            Render = Matter.Render,
+            World = Matter.World,
+            Bodies = Matter.Bodies,
+            Body = Matter.Body,
+            Events = Matter.Events,
+            Mouse = Matter.Mouse,
+            MouseConstraint = Matter.MouseConstraint;
+
+        let engine = Engine.create();
+        let beaker = document.getElementById('beaker');
+        let beakerContainer = document.getElementById('beakerContainer'); // 비커 컨테이너 요소 가져오기
+        let render = Render.create({
+            canvas: beaker,
+            engine: engine,
+            options: {
+                width: 300,
+                height: 400,
+                wireframes: false,
+                background: 'transparent' // 캔버스의 배경을 투명하게 설정
+            }
+        });
+
+        // 비커 가장자리 생성
+        let ground = Bodies.rectangle(150, 410, 300, 20, { isStatic: true });
+        let leftWall = Bodies.rectangle(-10, 200, 20, 400, { isStatic: true });
+        let rightWall = Bodies.rectangle(310, 200, 20, 400, { isStatic: true });
+        World.add(engine.world, [ground, leftWall, rightWall]);
+
+        // 마우스 제어 추가 (물리 엔진 내부에서의 드래그)
+        let mouse = Mouse.create(render.canvas);
+        let mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.2,
+                render: {
+                    visible: false
+                }
+            }
+        });
+        World.add(engine.world, mouseConstraint);
+
+        render.mouse = mouse;
+
+        Engine.run(engine);
+        Render.run(render);
+
+        // 렌더 후 이벤트에서 텍스트 그리기
+        Events.on(render, 'afterRender', function() {
+            let bodies = Matter.Composite.allBodies(engine.world);
+            let context = render.context;
+            context.fillStyle = '#000';
+            context.font = '12px Arial';
+            context.textAlign = 'center';
+            bodies.forEach(function(body) {
+                if (body.isStatic) return;
+                let position = body.position;
+                context.save();
+                context.translate(position.x, position.y);
+                context.rotate(body.angle);
+                context.fillText(body.label, 0, 4);
+                context.restore();
+            });
+        });
+
+        function updateMoney() {
+            document.getElementById('money').innerText = money;
+        }
+
+        function updateDebt() {
+            document.getElementById('debt').innerText = debt;
+        }
+
+        function updateUnlockCost() {
+            document.getElementById('unlockCost').innerText = unlockCost;
+        }
+
+        function displayStore() {
+            let storeDiv = document.getElementById('ingredientList');
+            storeDiv.innerHTML = '';
+            ingredients.forEach((ingredient, index) => {
+                if (ingredient.unlocked) {
+                    let btn = document.createElement('button');
+                    btn.innerText = `${ingredient.name} 구매 (₩${ingredient.price})`;
+                    btn.onclick = () => buyIngredient(index);
+                    storeDiv.appendChild(btn);
+                }
+            });
+        }
+
+        function unlockIngredient() {
+            if (money >= unlockCost) {
+                money -= unlockCost;
+                updateMoney();
+                // 다음 재료 해금
+                if (unlockedIngredientCount < ingredients.length) {
+                    ingredients[unlockedIngredientCount].unlocked = true;
+                    unlockedIngredientCount++;
+                    unlockCost *= 2; // 해금 비용 증가
+                    updateUnlockCost();
+                    displayStore();
+                } else {
+                    alert("모든 재료를 해금했습니다!");
+                }
+            } else {
+                alert("돈이 부족합니다!");
+            }
+            saveGame();
+        }
+
+        function buyIngredient(index) {
+            if (money >= ingredients[index].price) {
+                money -= ingredients[index].price;
+                let ingredientInstance = {
+                    id: ingredientIdCounter++,
+                    name: ingredients[index].name,
+                    index: index,
+                    color: ingredients[index].color
+                };
+                inventory.push(ingredientInstance);
+                updateMoney();
+                displayInventory();
+            } else {
+                alert("돈이 부족합니다!");
+            }
+            saveGame();
+        }
+
+        function displayInventory() {
+            let inventoryDiv = document.getElementById('inventoryList');
+            inventoryDiv.innerHTML = '';
+            inventory.forEach((ingredientInstance) => {
+                let div = document.createElement('div');
+                div.className = 'ingredient';
+                div.innerText = ingredientInstance.name;
+                div.style.backgroundColor = ingredientInstance.color;
+                div.draggable = true;
+                div.dataset.id = ingredientInstance.id;
+                div.addEventListener('dragstart', dragStart);
+                inventoryDiv.appendChild(div);
+            });
+        }
+
+        function dragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.dataset.id);
+        }
+
+        function dragOver(e) {
+            e.preventDefault();
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            let id = e.dataTransfer.getData('text/plain');
+            // 마우스 위치 가져오기
+            let rect = beaker.getBoundingClientRect();
+            let x = e.clientX - rect.left;
+            let y = e.clientY - rect.top;
+            addIngredientToBeaker(id, x, y);
+        }
+
+        function addIngredientToBeaker(id, x, y) {
+            id = parseInt(id);
+            let ingredientIndex = inventory.findIndex(item => item.id === id);
+            if (ingredientIndex >= 0) {
+                let ingredientInstance = inventory.splice(ingredientIndex, 1)[0];
+                displayInventory();
+                // 물리 엔진에 재료 추가
+                let width = 40;
+                let height = 20;
+                let ingredientBody = Bodies.rectangle(x, y, width, height, {
+                    restitution: 0.5,
+                    friction: 0.5,
+                    render: {
+                        fillStyle: ingredientInstance.color
+                    }
+                });
+                ingredientBody.label = ingredientInstance.name;
+                World.add(engine.world, ingredientBody);
+                beakerIngredients.push({
+                    instance: ingredientInstance,
+                    body: ingredientBody
+                });
+                // 재료 추가 시 비커 색상 변경 없음
+            } else {
+                alert("재료를 찾을 수 없습니다.");
+            }
+            saveGame();
+        }
+
+        function createMixingBall() {
+            let ball = Bodies.circle(150, 380, 15, {
+                isStatic: true,
+                render: {
+                    visible: false
+                }
+            });
+            World.add(engine.world, ball);
+            return ball;
+        }
+
+        function moveMixingBall(ball) {
+            let direction = 1;
+            let speed = 5;
+            let moveInterval = setInterval(() => {
+                Body.translate(ball, { x: speed * direction, y: 0 });
+                if (ball.position.x > 280 || ball.position.x < 20) {
+                    direction *= -1;
+                }
+            }, 20);
+            return moveInterval;
+        }
+
+        let mixing = false;
+        let mixStartTime = 0;
+        let requiredMixTime = 0;
+        let mixButton = document.getElementById('mixButton');
+        let mixingBall;
+        let moveInterval;
+
+        mixButton.addEventListener('mousedown', startMixing);
+        mixButton.addEventListener('mouseup', stopMixing);
+        mixButton.addEventListener('mouseleave', function() {
+            if (mixing) stopMixing();
+        });
+
+        function startMixing() {
+            if (beakerIngredients.length === 0) {
+                alert("비커에 재료가 없습니다!");
+                return;
+            }
+
+            // 잼 만들기 전에 설탕의 양을 체크
+            let counts = {};
+            beakerIngredients.forEach(item => {
+                let name = item.instance.name;
+                counts[name] = (counts[name] || 0) + 1;
+            });
+
+            let totalIngredients = beakerIngredients.length;
+            let sugarAmount = counts["설탕"] || 0;
+            let requiredSugar = Math.ceil(totalIngredients * 0.2);
+
+            if (sugarAmount < requiredSugar) {
+                let neededSugar = requiredSugar - sugarAmount;
+                alert(`설탕이 부족합니다! 잼을 만들기 위해 설탕이 ${neededSugar}개 더 필요합니다.`);
+                return;
+            }
+
+            mixing = true;
+            mixStartTime = Date.now();
+            requiredMixTime = Math.max(5000, totalIngredients * 500); // 최소 5초 필요
+
+            mixingBall = createMixingBall();
+            moveInterval = moveMixingBall(mixingBall);
+
+            // 섞는 동안 색상 변화 관리
+            changeBeakerColor();
+        }
+
+        function stopMixing() {
+            mixing = false;
+            let mixDuration = Date.now() - mixStartTime;
+
+            // 움직임 중지 및 공 제거
+            clearInterval(moveInterval);
+            World.remove(engine.world, mixingBall);
+
+            // 비커 색상 초기화
+            beakerContainer.style.backgroundColor = '#e6f7ff';
+
+            // 잼 품질 결정
+            let result = determineJamQuality(mixDuration, requiredMixTime);
+
+            if (result === 'fail') {
+                alert("잼 만들기에 실패했습니다!");
+                beakerIngredients = [];
+                // 물리 엔진 초기화
+                World.clear(engine.world, false);
+                World.add(engine.world, [ground, leftWall, rightWall]);
+                // 비커 색상 초기화
+                saveGame();
+                return;
+            } else {
+                // 잼 만들기 로직
+                let jamIngredients = [];
+                let counts = {};
+                let magicHerbCount = 0;
+                beakerIngredients.forEach(item => {
+                    let name = item.instance.name;
+                    counts[name] = (counts[name] || 0) + 1;
+                    if (name === "마법의 허브") {
+                        magicHerbCount++;
+                    }
+                });
+                for (let name in counts) {
+                    jamIngredients.push({ name: name, quantity: counts[name] });
+                }
+
+                // 잼 이름 생성
+                let jamName = generateJamName(jamIngredients);
+
+                // 잼 판매 가격 계산
+                let jamPrice = calculateJamPrice(jamIngredients);
+
+                // 실패작 여부 판단
+                let isDud = checkForDud(jamIngredients);
+
+                // 중독적인 잼 여부 결정
+                let isAddictive = false;
+                if (magicHerbCount > 0) {
+                    let chance = Math.min(0.2 * magicHerbCount, 1); // 최대 100%까지 증가
+                    if (Math.random() < chance) {
+                        isAddictive = true;
+                        jamName = "중독적인 " + jamName;
+                        jamPrice *= 2;
+                    }
+                }
+
+                // 품질에 따른 접두사와 가격 조정
+                if (result === 'great') {
+                    jamName = "매우 잘 만들어진 " + jamName;
+                    jamPrice *= 3;
+                } else if (result === 'good') {
+                    jamName = "잘 만들어진 " + jamName;
+                    jamPrice *= 2;
+                }
+
+                jamInventory.push({ name: jamName, ingredients: jamIngredients, price: jamPrice, isDud: isDud, isAddictive: isAddictive });
+                beakerIngredients = [];
+
+                // 물리 엔진 초기화
+                World.clear(engine.world, false);
+                World.add(engine.world, [ground, leftWall, rightWall]);
+
+                displayJamList();
+                saveGame();
+            }
+        }
+
+        function determineJamQuality(mixDuration, requiredTime) {
+            let difference = Math.abs(mixDuration - requiredTime);
+            if (difference <= 500) {
+                return 'great'; // 대성공
+            } else if (difference <= 1000) {
+                return 'good'; // 성공
+            } else if (difference <= 1500) {
+                return 'normal'; // 보통
+            } else {
+                return 'fail'; // 실패
+            }
+        }
+
+        function changeBeakerColor() {
+            if (!mixing) return;
+            let mixDuration = Date.now() - mixStartTime;
+            let progress = mixDuration / requiredMixTime;
+
+            if (progress <= 1) {
+                // 비커 색상이 초기 색상에서 혼합 색상으로 서서히 변화
+                let initialColor = { r: 230, g: 247, b: 255 }; // 초기 색상 RGB 값
+                let mixedColor = getMixedColor(); // 혼합 색상 RGB 객체
+                let currentColor = {
+                    r: Math.floor(initialColor.r + (mixedColor.r - initialColor.r) * progress),
+                    g: Math.floor(initialColor.g + (mixedColor.g - initialColor.g) * progress),
+                    b: Math.floor(initialColor.b + (mixedColor.b - initialColor.b) * progress)
+                };
+                beakerContainer.style.backgroundColor = `rgb(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`;
+            } else {
+                // 섞는 시간이 초과되면 검은색으로 서서히 변화
+                let overProgress = (mixDuration - requiredMixTime) / (requiredMixTime * 0.5); // 최대 50% 초과 시
+                if (overProgress > 1) overProgress = 1;
+
+                let mixedColor = getMixedColor();
+                let currentColor = {
+                    r: Math.floor(mixedColor.r * (1 - overProgress)),
+                    g: Math.floor(mixedColor.g * (1 - overProgress)),
+                    b: Math.floor(mixedColor.b * (1 - overProgress))
+                };
+                beakerContainer.style.backgroundColor = `rgb(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`;
+            }
+
+            requestAnimationFrame(changeBeakerColor);
+        }
+
+        function getMixedColor() {
+            if (beakerIngredients.length === 0) {
+                return { r: 230, g: 247, b: 255 }; // 초기 색상 RGB 값
+            }
+            let totalColors = { r: 0, g: 0, b: 0 };
+            beakerIngredients.forEach(item => {
+                let color = hexToRgb(item.instance.color);
+                totalColors.r += color.r;
+                totalColors.g += color.g;
+                totalColors.b += color.b;
+            });
+            let count = beakerIngredients.length;
+            let avgColor = {
+                r: Math.floor(totalColors.r / count),
+                g: Math.floor(totalColors.g / count),
+                b: Math.floor(totalColors.b / count)
+            };
+            return avgColor; // RGB 객체 반환
+        }
+
+        function hexToRgb(hex) {
+            let shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+            hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+                return r + r + g + g + b + b;
+            });
+            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function generateJamName(jamIngredients) {
+            let names = jamIngredients.filter(item => item.name !== "설탕" && item.name !== "마법의 허브").map(item => item.name);
+            if (names.length === 0) names.push("미스터리");
+            // 랜덤하게 이름 생성
+            let randomName = names.sort(() => 0.5 - Math.random()).slice(0, 2).join(" ");
+            return randomName + " 잼";
+        }
+
+        function calculateJamPrice(jamIngredients) {
+            let price = 0;
+            jamIngredients.forEach(item => {
+                let ingredientInfo = ingredients.find(ing => ing.name === item.name);
+                price += ingredientInfo.price * item.quantity;
+            });
+            // 특별한 조합에 따른 추가 가격 설정
+            if (jamIngredients.some(item => item.name === "딸기") && jamIngredients.some(item => item.name === "블루베리")) {
+                price += 10; // 딸기와 블루베리를 함께 사용하면 추가 ₩10
+            }
+            return price;
+        }
+
+        function checkForDud(jamIngredients) {
+            // 특정 조합이면 실패작으로 처리
+            if (jamIngredients.some(item => item.name === "마법의 허브") && jamIngredients.some(item => item.name === "설탕" && item.quantity > 3)) {
+                return true; // 마법의 허브와 설탕을 많이 넣으면 실패작
+            }
+            return false;
+        }
+
+        function displayJamList() {
+            let jamList = document.getElementById('jamList');
+            jamList.innerHTML = '';
+            jamInventory.forEach((jam, index) => {
+                let li = document.createElement('li');
+                let description = jam.ingredients.map(item => {
+                    return `${item.name} x${item.quantity}`;
+                }).join(', ');
+                li.innerText = `잼 ${index + 1}: ${jam.name} ${jam.isDud ? '(실패작)' : ''} ${jam.isAddictive ? '(중독성 있음)' : ''} - 재료: ${description} - 예상 가격: ₩${jam.price}`;
+                jamList.appendChild(li);
+            });
+        }
+
+        function sellJam() {
+            if (jamInventory.length === 0) {
+                alert("판매할 잼이 없습니다!");
+                return;
+            }
+            let earnings = 0;
+            jamInventory.forEach(jam => {
+                if (!jam.isDud) {
+                    earnings += jam.price;
+                }
+            });
+            money += earnings;
+            jamInventory = [];
+            updateMoney();
+            displayJamList();
+            alert(`잼을 모두 판매하여 ₩${earnings}를 벌었습니다!`);
+            saveGame();
+        }
+
+        function repayDebt() {
+            if (money > 0) {
+                let repayment = money;
+                debt -= repayment;
+                money = 0;
+                if (debt <= 0) {
+                    debt = 0;
+                    updateDebt();
+                    updateMoney();
+                    alert("빚을 모두 상환했습니다! 빚 갚기 성공!");
+                    // 게임 종료 처리
+                    document.body.innerHTML = "<h1>빚 갚기 성공! 게임 클리어!</h1><button onclick='resetGame()'>다시 시작</button>";
+                } else {
+                    updateDebt();
+                    updateMoney();
+                    alert(`₩${repayment}를 상환했습니다. 남은 빚: ₩${debt}`);
+                }
+            } else {
+                alert("상환할 돈이 없습니다!");
+            }
+            saveGame();
+        }
+
+        function bankrupt() {
+            // 게임 오버 처리
+            alert("파산하셨습니다. 게임 오버!");
+            document.body.innerHTML = "<h1>게임 오버</h1><button onclick='resetGame()'>처음부터 다시 시작</button>";
+            // 로컬 스토리지 초기화
+            localStorage.clear();
+        }
+
+        function resetGame() {
+            // 게임 상태 초기화
+            money = 100;
+            debt = 100000000;
+            unlockCost = 100;
+            inventory = [];
+            beakerIngredients = [];
+            jamInventory = [];
+            ingredientIdCounter = 0;
+            unlockedIngredientCount = 1;
+            ingredients.forEach((ingredient, index) => {
+                ingredient.unlocked = index === 2; // 설탕만 해금
+            });
+            // 페이지를 리로드하여 게임 재시작
+            location.reload();
+        }
+
+        function saveGame() {
+            let gameState = {
+                money: money,
+                debt: debt,
+                unlockCost: unlockCost,
+                inventory: inventory,
+                jamInventory: jamInventory,
+                unlockedIngredientCount: unlockedIngredientCount,
+                ingredients: ingredients,
+                ingredientIdCounter: ingredientIdCounter
+            };
+            localStorage.setItem('witchJamGameState', JSON.stringify(gameState));
+        }
+
+        function loadGame() {
+            let savedState = localStorage.getItem('witchJamGameState');
+            if (savedState) {
+                let gameState = JSON.parse(savedState);
+                money = gameState.money;
+                debt = gameState.debt;
+                unlockCost = gameState.unlockCost;
+                inventory = gameState.inventory;
+                jamInventory = gameState.jamInventory;
+                unlockedIngredientCount = gameState.unlockedIngredientCount;
+                ingredients = gameState.ingredients;
+                ingredientIdCounter = gameState.ingredientIdCounter;
+            }
+        }
+
+        function initBeaker() {
+            beakerContainer.addEventListener('dragover', dragOver);
+            beakerContainer.addEventListener('drop', drop);
+        }
+
+        function initGame() {
+            loadGame();
+            updateMoney();
+            updateDebt();
+            updateUnlockCost();
+            displayStore();
+            displayInventory();
+            displayJamList();
+            initBeaker();
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
