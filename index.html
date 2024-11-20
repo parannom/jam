@@ -6,7 +6,7 @@
         body {
             font-family: Arial, sans-serif;
         }
-        #ingredients, #jam, #inventory, #store, #beakerContainer {
+        #ingredients, #jam, #store, #beakerContainer {
             margin-bottom: 20px;
         }
         .ingredient {
@@ -14,7 +14,7 @@
             margin: 5px;
             padding: 10px;
             background-color: #f2f2f2;
-            cursor: move;
+            cursor: pointer;
             border: 1px solid #ccc;
         }
         #beakerContainer {
@@ -56,18 +56,13 @@
 </head>
 <body>
     <h1>마녀의 잼</h1>
-    <p>돈: ₩<span id="money">100</span></p>
-    <p>빚: ₩<span id="debt">100000000</span></p>
+    <p>빚: ₩<span id="debt">1000000</span></p>
+    <button onclick="bankrupt()">파산하기</button>
+    <p>잼 제조 점수: <span id="jamPoints">0</span></p>
 
     <div id="store">
         <h2>재료 상점</h2>
-        <button onclick="unlockIngredient()">재료 해금 (₩<span id="unlockCost">100</span>)</button>
         <div id="ingredientList"></div>
-    </div>
-
-    <div id="inventory">
-        <h2>내 재료</h2>
-        <div id="inventoryList"></div>
     </div>
 
     <div id="jam">
@@ -80,45 +75,37 @@
 
     <div id="madeJam">
         <h2>만든 잼</h2>
-        <ul id="jamList"></ul>
         <button onclick="sellJam()">잼 판매하기</button>
+        <ul id="jamList"></ul>
     </div>
 
-    <button onclick="repayDebt()">빚 상환하기</button>
-    <button onclick="bankrupt()">파산하기</button>
-
     <script>
-        let money = 100;
-        let debt = 100000000;
-        let unlockCost = 100;
+        let debt = 1000000;
+        let jamPoints = 0;
 
-        // 재료 배열 수정 (설탕을 첫 번째로 이동하고 purchasePrice와 saleValue 추가)
         let ingredients = [
-            { name: "설탕", purchasePrice: 0, saleValue: 2, color: "#ffffff", unlocked: true },
-            { name: "딸기", purchasePrice: 5, saleValue: 5, color: "#ff4d4d", unlocked: false },
-            { name: "블루베리", purchasePrice: 4, saleValue: 4, color: "#4d4dff", unlocked: false },
-            { name: "마법의 허브", purchasePrice: 10, saleValue: 10, color: "#66ff66", unlocked: false },
-            { name: "레몬", purchasePrice: 3, saleValue: 3, color: "#ffff66", unlocked: false },
-            { name: "체리", purchasePrice: 6, saleValue: 6, color: "#ff66b3", unlocked: false },
-            { name: "호박", purchasePrice: 7, saleValue: 7, color: "#ff9933", unlocked: false },
-            { name: "자몽", purchasePrice: 8, saleValue: 8, color: "#ffcc99", unlocked: false },
-            { name: "키위", purchasePrice: 5, saleValue: 5, color: "#99cc33", unlocked: false },
-            { name: "망고", purchasePrice: 6, saleValue: 6, color: "#ffc34d", unlocked: false },
-            { name: "바나나", purchasePrice: 4, saleValue: 4, color: "#ffff99", unlocked: false },
-            { name: "복숭아", purchasePrice: 7, saleValue: 7, color: "#ffcc99", unlocked: false },
-            { name: "사과", purchasePrice: 5, saleValue: 5, color: "#ff6666", unlocked: false },
-            { name: "포도", purchasePrice: 6, saleValue: 6, color: "#9966cc", unlocked: false },
-            { name: "라임", purchasePrice: 4, saleValue: 4, color: "#99ff99", unlocked: false },
-            { name: "파인애플", purchasePrice: 8, saleValue: 8, color: "#ffff66", unlocked: false },
-            { name: "오렌지", purchasePrice: 5, saleValue: 5, color: "#ffcc66", unlocked: false },
-            { name: "코코넛", purchasePrice: 9, saleValue: 9, color: "#ffffff", unlocked: false }
+            { name: "설탕", purchasePrice: 1, saleValue: 1, color: "#ffffff", unlocked: true, unlockPoints: 0 },
+            { name: "딸기", purchasePrice: 2, saleValue: 2, color: "#ff4d4d", unlocked: false, unlockPoints: 5 },
+            { name: "블루베리", purchasePrice: 3, saleValue: 3, color: "#4d4dff", unlocked: false, unlockPoints: 10 },
+            { name: "레몬", purchasePrice: 5, saleValue: 5, color: "#ffff66", unlocked: false, unlockPoints: 25 },
+            { name: "체리", purchasePrice: 8, saleValue: 8, color: "#ff66b3", unlocked: false, unlockPoints: 40 },
+            { name: "호박", purchasePrice: 13, saleValue: 13, color: "#ff9933", unlocked: false, unlockPoints: 65 },
+            { name: "자몽", purchasePrice: 21, saleValue: 21, color: "#ffcc99", unlocked: false, unlockPoints: 105 },
+            { name: "키위", purchasePrice: 34, saleValue: 34, color: "#99cc33", unlocked: false, unlockPoints: 170 },
+            { name: "망고", purchasePrice: 55, saleValue: 55, color: "#ffc34d", unlocked: false, unlockPoints: 275 },
+            { name: "바나나", purchasePrice: 89, saleValue: 89, color: "#ffff99", unlocked: false, unlockPoints: 445 },
+            { name: "복숭아", purchasePrice: 144, saleValue: 144, color: "#ffcc99", unlocked: false, unlockPoints: 720 },
+            { name: "사과", purchasePrice: 233, saleValue: 233, color: "#ff6666", unlocked: false, unlockPoints: 1165 },
+            { name: "포도", purchasePrice: 377, saleValue: 377, color: "#9966cc", unlocked: false, unlockPoints: 1885 },
+            { name: "라임", purchasePrice: 610, saleValue: 610, color: "#99ff99", unlocked: false, unlockPoints: 3050 },
+            { name: "파인애플", purchasePrice: 987, saleValue: 987, color: "#ffff66", unlocked: false, unlockPoints: 4935 },
+            { name: "오렌지", purchasePrice: 1597, saleValue: 1597, color: "#ffcc66", unlocked: false, unlockPoints: 7985 },
+            { name: "코코넛", purchasePrice: 2584, saleValue: 2584, color: "#ffffff", unlocked: false, unlockPoints: 12920 },
+            { name: "마법의 허브", purchasePrice: 4181, saleValue: 4181, color: "#66ff66", unlocked: false, unlockPoints: 20905 }
         ];
 
-        let inventory = [];
         let beakerIngredients = [];
         let jamInventory = [];
-        let ingredientIdCounter = 0;
-        let unlockedIngredientCount = 1; // 설탕만 해금되어 있음
 
         // Matter.js 설정
         let Engine = Matter.Engine,
@@ -186,16 +173,12 @@
             });
         });
 
-        function updateMoney() {
-            document.getElementById('money').innerText = money;
-        }
-
         function updateDebt() {
             document.getElementById('debt').innerText = debt;
         }
 
-        function updateUnlockCost() {
-            document.getElementById('unlockCost').innerText = unlockCost;
+        function updateJamPoints() {
+            document.getElementById('jamPoints').innerText = jamPoints;
         }
 
         function displayStore() {
@@ -203,112 +186,54 @@
             storeDiv.innerHTML = '';
             ingredients.forEach((ingredient, index) => {
                 if (ingredient.unlocked) {
-                    let btn = document.createElement('button');
-                    btn.innerText = `${ingredient.name} 구매 (₩${ingredient.purchasePrice})`;
+                    let btn = document.createElement('div');
+                    btn.className = 'ingredient';
+                    btn.innerText = `${ingredient.name} (₩${ingredient.purchasePrice})`;
+                    btn.style.backgroundColor = ingredient.color;
                     btn.onclick = () => buyIngredient(index);
                     storeDiv.appendChild(btn);
+                } else if (jamPoints >= ingredient.unlockPoints) {
+                    ingredient.unlocked = true;
+                    displayStore();
                 }
             });
-        }
-
-        function unlockIngredient() {
-            if (money >= unlockCost) {
-                money -= unlockCost;
-                updateMoney();
-                // 다음 잠금된 재료 찾기
-                let nextIngredientIndex = ingredients.findIndex(ingredient => !ingredient.unlocked);
-                if (nextIngredientIndex !== -1) {
-                    ingredients[nextIngredientIndex].unlocked = true;
-                    unlockCost *= 2; // 해금 비용 증가
-                    updateUnlockCost();
-                    displayStore();
-                } else {
-                    alert("모든 재료를 해금했습니다!");
-                }
-            } else {
-                alert("돈이 부족합니다!");
-            }
-            saveGame();
         }
 
         function buyIngredient(index) {
-            if (ingredients[index].purchasePrice === 0 || money >= ingredients[index].purchasePrice) {
-                money -= ingredients[index].purchasePrice;
-                let ingredientInstance = {
-                    id: ingredientIdCounter++,
-                    name: ingredients[index].name,
-                    index: index,
-                    color: ingredients[index].color
-                };
-                inventory.push(ingredientInstance);
-                updateMoney();
-                displayInventory();
-            } else {
-                alert("돈이 부족합니다!");
-            }
+            // 빚 증가
+            debt += ingredients[index].purchasePrice;
+            updateDebt();
+
+            // 재료를 바로 비커에 추가
+            let x = Math.random() * 280 + 10; // 비커 내 랜덤 위치
+            let y = 50; // 비커 상단에서 떨어짐
+            addIngredientToBeaker(index, x, y);
             saveGame();
         }
 
-        function displayInventory() {
-            let inventoryDiv = document.getElementById('inventoryList');
-            inventoryDiv.innerHTML = '';
-            inventory.forEach((ingredientInstance) => {
-                let div = document.createElement('div');
-                div.className = 'ingredient';
-                div.innerText = ingredientInstance.name;
-                div.style.backgroundColor = ingredientInstance.color;
-                div.draggable = true;
-                div.dataset.id = ingredientInstance.id;
-                div.addEventListener('dragstart', dragStart);
-                inventoryDiv.appendChild(div);
+        function addIngredientToBeaker(index, x, y) {
+            let ingredientInstance = {
+                name: ingredients[index].name,
+                index: index,
+                color: ingredients[index].color
+            };
+
+            // 물리 엔진에 재료 추가
+            let width = 40;
+            let height = 20;
+            let ingredientBody = Bodies.rectangle(x, y, width, height, {
+                restitution: 0.5,
+                friction: 0.5,
+                render: {
+                    fillStyle: ingredientInstance.color
+                }
             });
-        }
-
-        function dragStart(e) {
-            e.dataTransfer.setData('text/plain', e.target.dataset.id);
-        }
-
-        function dragOver(e) {
-            e.preventDefault();
-        }
-
-        function drop(e) {
-            e.preventDefault();
-            let id = e.dataTransfer.getData('text/plain');
-            // 마우스 위치 가져오기
-            let rect = beaker.getBoundingClientRect();
-            let x = e.clientX - rect.left;
-            let y = e.clientY - rect.top;
-            addIngredientToBeaker(id, x, y);
-        }
-
-        function addIngredientToBeaker(id, x, y) {
-            id = parseInt(id);
-            let ingredientIndex = inventory.findIndex(item => item.id === id);
-            if (ingredientIndex >= 0) {
-                let ingredientInstance = inventory.splice(ingredientIndex, 1)[0];
-                displayInventory();
-                // 물리 엔진에 재료 추가
-                let width = 40;
-                let height = 20;
-                let ingredientBody = Bodies.rectangle(x, y, width, height, {
-                    restitution: 0.5,
-                    friction: 0.5,
-                    render: {
-                        fillStyle: ingredientInstance.color
-                    }
-                });
-                ingredientBody.label = ingredientInstance.name;
-                World.add(engine.world, ingredientBody);
-                beakerIngredients.push({
-                    instance: ingredientInstance,
-                    body: ingredientBody
-                });
-                // 재료 추가 시 비커 색상 변경 없음
-            } else {
-                alert("재료를 찾을 수 없습니다.");
-            }
-            saveGame();
+            ingredientBody.label = ingredientInstance.name;
+            World.add(engine.world, ingredientBody);
+            beakerIngredients.push({
+                instance: ingredientInstance,
+                body: ingredientBody
+            });
         }
 
         function createMixingBall() {
@@ -440,14 +365,20 @@
                     }
                 }
 
-                // 품질에 따른 접두사와 가격 조정
+                // 품질에 따른 접두사와 가격 조정 및 포인트 추가
                 if (result === 'great') {
                     jamName = "매우 잘 만들어진 " + jamName;
                     jamPrice *= 3;
+                    jamPoints += 3;
                 } else if (result === 'good') {
                     jamName = "잘 만들어진 " + jamName;
                     jamPrice *= 2;
+                    jamPoints += 2;
+                } else {
+                    jamPoints += 1;
                 }
+
+                updateJamPoints();
 
                 jamInventory.push({ name: jamName, ingredients: jamIngredients, price: jamPrice, isDud: isDud, isAddictive: isAddictive });
                 beakerIngredients = [];
@@ -457,6 +388,7 @@
                 World.add(engine.world, [ground, leftWall, rightWall]);
 
                 displayJamList();
+                displayStore(); // 포인트에 따른 재료 해금
                 saveGame();
             }
         }
@@ -541,7 +473,7 @@
 
         function generateJamName(jamIngredients) {
             let names = jamIngredients.filter(item => item.name !== "설탕" && item.name !== "마법의 허브").map(item => item.name);
-            if (names.length === 0) names.push("미스터리");
+            if (names.length === 0) return "설탕 잼"; // 설탕만 있을 경우
             // 랜덤하게 이름 생성
             let randomName = names.sort(() => 0.5 - Math.random()).slice(0, 2).join(" ");
             return randomName + " 잼";
@@ -592,35 +524,21 @@
                     earnings += jam.price;
                 }
             });
-            money += earnings;
+            debt -= earnings; // 수익만큼 빚 감소
+            if (debt < 0) debt = 0;
             jamInventory = [];
-            updateMoney();
+            updateDebt();
             displayJamList();
-            alert(`잼을 모두 판매하여 ₩${earnings}를 벌었습니다!`);
+            alert(`잼을 모두 판매하여 ₩${earnings}의 수익을 얻었습니다!`);
             saveGame();
         }
 
         function repayDebt() {
-            if (money > 0) {
-                let repayment = money;
-                debt -= repayment;
-                money = 0;
-                if (debt <= 0) {
-                    debt = 0;
-                    updateDebt();
-                    updateMoney();
-                    alert("빚을 모두 상환했습니다! 빚 갚기 성공!");
-                    // 게임 종료 처리
-                    document.body.innerHTML = "<h1>빚 갚기 성공! 게임 클리어!</h1><button onclick='resetGame()'>다시 시작</button>";
-                } else {
-                    updateDebt();
-                    updateMoney();
-                    alert(`₩${repayment}를 상환했습니다. 남은 빚: ₩${debt}`);
-                }
-            } else {
-                alert("상환할 돈이 없습니다!");
+            if (debt <= 0) {
+                alert("이미 빚을 모두 상환했습니다!");
+                return;
             }
-            saveGame();
+            alert("잼을 판매하여 빚을 상환하세요!");
         }
 
         function bankrupt() {
@@ -633,13 +551,10 @@
 
         function resetGame() {
             // 게임 상태 초기화
-            money = 100;
-            debt = 100000000;
-            unlockCost = 100;
-            inventory = [];
+            debt = 1000000;
+            jamPoints = 0;
             beakerIngredients = [];
             jamInventory = [];
-            ingredientIdCounter = 0;
             ingredients.forEach((ingredient) => {
                 ingredient.unlocked = ingredient.name === "설탕"; // 설탕만 해금
             });
@@ -649,12 +564,9 @@
 
         function saveGame() {
             let gameState = {
-                money: money,
                 debt: debt,
-                unlockCost: unlockCost,
-                inventory: inventory,
+                jamPoints: jamPoints,
                 jamInventory: jamInventory,
-                ingredientIdCounter: ingredientIdCounter,
                 ingredients: ingredients.map(ingredient => ({
                     unlocked: ingredient.unlocked
                 }))
@@ -666,12 +578,9 @@
             let savedState = localStorage.getItem('witchJamGameState');
             if (savedState) {
                 let gameState = JSON.parse(savedState);
-                money = gameState.money;
                 debt = gameState.debt;
-                unlockCost = gameState.unlockCost;
-                inventory = gameState.inventory;
+                jamPoints = gameState.jamPoints;
                 jamInventory = gameState.jamInventory;
-                ingredientIdCounter = gameState.ingredientIdCounter;
 
                 // 재료 상태 로드
                 ingredients.forEach((ingredient, index) => {
@@ -682,20 +591,12 @@
             }
         }
 
-        function initBeaker() {
-            beakerContainer.addEventListener('dragover', dragOver);
-            beakerContainer.addEventListener('drop', drop);
-        }
-
         function initGame() {
             loadGame();
-            updateMoney();
             updateDebt();
-            updateUnlockCost();
+            updateJamPoints();
             displayStore();
-            displayInventory();
             displayJamList();
-            initBeaker();
         }
 
         initGame();
