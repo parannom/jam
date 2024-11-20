@@ -27,12 +27,12 @@
         /* front.png 이미지 */
         #frontImage {
             position: absolute;
-            top: 0;
+            bottom: 0; /* 하단 기준 정렬 */
             left: 0;
             width: 600px;
-            height: 800px;
+            height: auto; /* 이미지 비율 유지 */
             z-index: 1;
-            pointer-events: none; /* 클릭 이벤트가 이미지에 막히지 않도록 */
+            pointer-events: none; /* 클릭 이벤트 방지 */
         }
         /* 게임 콘텐츠 컨테이너 */
         #gameContainer {
@@ -54,19 +54,29 @@
         /* 정보 패널 스타일 */
         #infoPanel {
             display: flex;
-            justify-content: space-around;
+            justify-content: center;
+            align-items: center;
             width: 90%;
             max-width: 500px;
             margin: 10px 0;
             background-color: rgba(255, 255, 255, 0.7);
             border-radius: 10px;
             padding: 10px;
+            position: relative;
         }
         #infoPanel p {
-            margin: 0;
+            margin: 0 10px;
             font-size: 12px;
             font-weight: bold;
             color: #333;
+        }
+        /* 파산하기 버튼을 빚 오른쪽에 배치 */
+        #bankruptButton {
+            position: absolute;
+            right: 10px;
+            top: -40px;
+            padding: 5px 10px;
+            font-size: 12px;
         }
         /* 재료 상점 스타일 */
         #store {
@@ -82,7 +92,13 @@
             font-size: 12px;
             color: #333;
         }
-
+        #ingredientList {
+            display: flex;
+            overflow-x: auto; /* 가로 스크롤 활성화 */
+            overflow-y: hidden;
+            white-space: nowrap; /* 줄바꿈 방지 */
+            padding-bottom: 10px;
+        }
         .ingredient {
             display: inline-block;
             margin: 5px;
@@ -103,11 +119,17 @@
         .ingredient:hover {
             transform: scale(1.1);
         }
+        
+        /* 비커 섹션 */
+        #jam {
+            align-self: stretch; /* 부모의 flex 설정에서 너비를 최대화 */
+        }
+        
         /* 비커 컨테이너 스타일 */
         #beakerContainerWrapper {
             position: relative;
             width: 90%;
-            max-width: 300px;
+            max-width: 100px;
             margin: 0 auto;
             margin-bottom: 10px;
         }
@@ -127,27 +149,6 @@
             width: 100%;
             height: 100%;
         }
-        /* 버튼 스타일 */
-        button {
-            padding: 12px 24px;
-            margin-top: 10px;
-            font-size: 12px;
-            font-weight: bold;
-            color: #fff;
-            background: linear-gradient(45deg, #ff6b6b, #f94d6a);
-            border: none;
-            border-radius: 10px;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-            cursor: pointer;
-            transition: background 0.3s, transform 0.2s;
-        }
-        button:hover {
-            background: linear-gradient(45deg, #f94d6a, #ff6b6b);
-            transform: scale(1.05);
-        }
-        button:active {
-            transform: scale(0.95);
-        }
         /* 만든 잼 영역 스타일 */
         #madeJam {
             width: 90%;
@@ -156,6 +157,7 @@
             border-radius: 10px;
             padding: 10px;
             margin-bottom: 10px;
+            position: relative;
         }
         #madeJam h2 {
             margin-top: 0;
@@ -178,13 +180,34 @@
             color: #333;
             box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
         }
-        /* 하단 버튼 영역 */
-        #bottomButtons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 20px;
-            z-index: 3;
+        /* 잼 판매하기 버튼을 만든 잼 오른쪽에 배치 */
+        #sellJamButton {
+            position: absolute;
+            right: 10px;
+            top: -40px;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        /* 버튼 스타일 */
+        button {
+            padding: 12px 24px;
+            margin-top: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(45deg, #ff6b6b, #f94d6a);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #f94d6a, #ff6b6b);
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.95);
         }
         /* 반응형 디자인 */
         @media screen and (max-width: 600px) {
@@ -212,14 +235,7 @@
                 font-size: 14px;
             }
             #beakerContainer {
-                height: 300px;
-            }
-            #bottomButtons {
-                flex-direction: column;
-                align-items: center;
-            }
-            #bottomButtons button {
-                width: 80%;
+                height: 100px;
             }
             #madeJam {
                 margin-bottom: 80px; /* 하단 버튼과 겹치지 않도록 마진 추가 */
@@ -239,6 +255,8 @@
             <div id="infoPanel">
                 <p>레벨: <span id="level">1</span> (XP: <span id="currentXP">0</span>/<span id="nextLevelXP">10</span>)</p>
                 <p>빚: ₩<span id="debt">1000000</span></p>
+                <!-- 파산하기 버튼 -->
+                <button id="bankruptButton" onclick="bankrupt()">파산하기</button>
             </div>
             <div id="store">
                 <h2>재료 상점</h2>
@@ -251,22 +269,17 @@
                         <canvas id="beaker"></canvas>
                     </div>
                 </div>
-                <button id="mixButton">잼 섞기 시작</button>
             </div>
 
             <div id="madeJam">
                 <h2>만든 잼</h2>
+                <!-- 잼 판매하기 버튼 -->
+                <button id="sellJamButton" onclick="sellJam()">잼 판매하기</button>
                 <ul id="jamList"></ul>
-            </div>
-
-            <!-- 하단 버튼 영역 -->
-            <div id="bottomButtons">
-                <button onclick="sellJam()">잼 판매하기</button>
-                <button onclick="bankrupt()">파산하기</button>
             </div>
         </div>
     </div>
-<script>
+    <script>
         let debt = 1000000;
         let level = 1;
         let currentXP = 0;
@@ -380,24 +393,20 @@
                 color: ingredients[index].color
             };
 
-            // 10개의 재료를 비커에 추가(크기 5)
-            for (let i = 0; i < 1; i++) {
-                let offsetX = Math.random() * 20 - 10; // 약간의 X 위치 오프셋
-                let offsetY = Math.random() * 20 - 10; // 약간의 Y 위치 오프셋
-                let ingredientBody = Bodies.circle(x + offsetX, y + offsetY, 5, {
-                    restitution: 0.5,
-                    friction: 0.5,
-                    render: {
-                        fillStyle: ingredientInstance.color
-                    }
-                });
+            // 재료를 비커에 추가
+            let ingredientBody = Bodies.circle(x, y, 5, {
+                restitution: 0.5,
+                friction: 0.5,
+                render: {
+                    fillStyle: ingredientInstance.color
+                }
+            });
 
-                World.add(engine.world, ingredientBody);
-                beakerIngredients.push({
-                    instance: ingredientInstance,
-                    body: ingredientBody
-                });
-            }
+            World.add(engine.world, ingredientBody);
+            beakerIngredients.push({
+                instance: ingredientInstance,
+                body: ingredientBody
+            });
         }
 
         function createMixingBall() {
@@ -426,17 +435,15 @@
         let mixing = false;
         let mixStartTime = 0;
         let requiredMixTime = 0;
-        let mixButton = document.getElementById('mixButton');
         let mixingBall;
         let moveInterval;
 
-        mixButton.addEventListener('click', function() {
+        // 비커 클릭 시 잼 섞기 시작/중단
+        beakerContainer.addEventListener('click', function() {
             if (!mixing) {
                 startMixing();
-                mixButton.innerText = '잼 섞기 중단';
             } else {
                 stopMixing();
-                mixButton.innerText = '잼 섞기 시작';
             }
         });
 
@@ -465,7 +472,7 @@
 
             mixing = true;
             mixStartTime = Date.now();
-            requiredMixTime = Math.max(3000, totalIngredients * 50); // 최소 3초 필요
+            requiredMixTime = Math.max(3000, totalIngredients * 500); // 최소 3초 필요
 
             mixingBall = createMixingBall();
             moveInterval = moveMixingBall(mixingBall);
@@ -479,7 +486,6 @@
                 return;
             }
             mixing = false;
-            mixButton.innerText = '잼 섞기 시작';
             let mixDuration = Date.now() - mixStartTime;
 
             // 움직임 중지 및 공 제거
