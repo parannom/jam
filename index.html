@@ -1,86 +1,272 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
+    <meta charset="UTF-8">
     <title>마녀의 잼</title>
+    <!-- 뷰포트 메타 태그 추가 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Google Fonts 추가 (더 나은 폰트 사용) -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center; /* 가운데 정렬 */
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* 스크롤바 방지 */
+        }
+        /* 게임 영역을 제한하는 컨테이너 */
+        #gameWrapper {
+            position: relative;
+            width: 600px;
+            height: 800px;
+            margin: 0 auto; /* 가운데 정렬 */
+            overflow: hidden;
+            background-image: url('back.png'); /* back.png를 게임 영역 배경으로 설정 */
+            background-size: cover;
+            background-position: center;
+        }
+        /* front.png 이미지 */
+        #frontImage {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 600px;
+            height: 800px;
+            z-index: 1;
+            pointer-events: none; /* 클릭 이벤트가 이미지에 막히지 않도록 */
+        }
+        /* 게임 콘텐츠 컨테이너 */
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            z-index: 2; /* front.png 위에 표시되도록 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        /* 제목 스타일 */
+        h1 {
+            font-family: 'Jua', sans-serif;
+            color: #fff;
+            text-shadow: 2px 2px 4px #000;
+            margin-top: 20px;
+        }
+        /* 정보 패널 스타일 */
+        #infoPanel {
+            display: flex;
+            justify-content: space-around;
+            width: 90%;
+            max-width: 500px;
+            margin: 10px 0;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            padding: 10px;
+        }
+        #infoPanel p {
+            margin: 0;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+        }
+        /* 재료 상점 스타일 */
+        #store {
+            width: 90%;
+            max-width: 500px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        #store h2 {
+            margin-top: 0;
+            font-size: 12px;
+            color: #333;
+        }
 
-        }
-        #ingredients, #jam, #store, #beakerContainer {
-            margin-bottom: 20px;
-        }
         .ingredient {
             display: inline-block;
-            margin: 1px;
+            margin: 5px;
             padding: 10px;
-            background-color: #f2f2f2;
+            background-color: #fff;
             cursor: pointer;
-            border: 1px solid #ccc;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            width: 60px;
+            height: 30px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        .ingredient:hover {
+            transform: scale(1.1);
+        }
+        /* 비커 컨테이너 스타일 */
+        #beakerContainerWrapper {
+            position: relative;
+            width: 90%;
+            max-width: 300px;
+            margin: 0 auto;
+            margin-bottom: 10px;
         }
         #beakerContainer {
             position: relative;
-            width: 300px;
-            height: 400px;
-            border: 2px solid #000;
-            background-color: #e6f7ff;
+            width: 100%;
+            height: 100px;
+            background-color: #e6f7ff; /* 비커의 초기 배경색 설정 */
             overflow: hidden;
             margin: 0 auto; /* 가운데 정렬 */
+            border: 2px solid #000;
+            border-radius: 10px;
         }
         #beaker {
+            position: absolute;
             bottom: 0;
             width: 100%;
             height: 100%;
         }
-        #madeJam ul {
+        /* 버튼 스타일 */
+        button {
+            padding: 12px 24px;
+            margin-top: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(45deg, #ff6b6b, #f94d6a);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #f94d6a, #ff6b6b);
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        /* 만든 잼 영역 스타일 */
+        #madeJam {
+            width: 90%;
+            max-width: 500px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        #madeJam h2 {
+            margin-top: 0;
+            font-size: 12px;
+            color: #333;
+        }
+        #jamList {
             list-style-type: none;
             padding: 0;
+            margin: 0;
+            height: 100px;
+            overflow-y: auto;
         }
-        #madeJam li {
-            background-color: #ffe6e6;
+        #jamList li {
+            background-color: #fff;
             margin: 5px 0;
             padding: 5px;
+            border-radius: 5px;
+            font-size: 10px;
+            color: #333;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
         }
-        button {
-            padding: 10px 20px;
-            margin-top: 10px;
+        /* 하단 버튼 영역 */
+        #bottomButtons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            z-index: 3;
         }
-        #mixButton {
-            position: relative;
-        }
-        #mixButton:active {
-            background-color: #ccc;
+        /* 반응형 디자인 */
+        @media screen and (max-width: 600px) {
+            #gameWrapper {
+                width: 100%;
+                height: auto;
+            }
+            #frontImage {
+                width: 100%;
+                height: auto;
+            }
+            h1 {
+                font-size: 32px;
+            }
+            #infoPanel p {
+                font-size: 16px;
+            }
+            .ingredient {
+                width: 50px;
+                height: 50px;
+                font-size: 12px;
+            }
+            button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            #beakerContainer {
+                height: 300px;
+            }
+            #bottomButtons {
+                flex-direction: column;
+                align-items: center;
+            }
+            #bottomButtons button {
+                width: 80%;
+            }
+            #madeJam {
+                margin-bottom: 80px; /* 하단 버튼과 겹치지 않도록 마진 추가 */
+            }
         }
     </style>
     <!-- Matter.js 라이브러리 로드 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.17.1/matter.min.js"></script>
 </head>
 <body>
-    <h1>마녀의 잼</h1>
-    <p>레벨: <span id="level">1</span> (XP: <span id="currentXP">0</span>/<span id="nextLevelXP">10</span>)</p>
-    <p>빚: ₩<span id="debt">1000000</span></p>
-    <button onclick="bankrupt()">파산하기</button>
-    <div id="store">
-        <h2>재료 상점</h2>
-        <div id="ingredientList"></div>
-    </div>
+    <div id="gameWrapper">
+        <!-- front.png 이미지 추가 -->
+        <img id="frontImage" src="front.png" alt="Front Image">
+        <!-- 게임 콘텐츠 컨테이너 -->
+        <div id="gameContainer">
+            <h1>마녀의 잼</h1>
+            <div id="infoPanel">
+                <p>레벨: <span id="level">1</span> (XP: <span id="currentXP">0</span>/<span id="nextLevelXP">10</span>)</p>
+                <p>빚: ₩<span id="debt">1000000</span></p>
+            </div>
+            <div id="store">
+                <h2>재료 상점</h2>
+                <div id="ingredientList"></div>
+            </div>
 
-    <div id="jam">
-        <h2>잼 만들기</h2>
-        <div id="beakerContainer">
-            <canvas id="beaker"></canvas>
+            <div id="jam">
+                <div id="beakerContainerWrapper">
+                    <div id="beakerContainer">
+                        <canvas id="beaker"></canvas>
+                    </div>
+                </div>
+                <button id="mixButton">잼 섞기 시작</button>
+            </div>
+
+            <div id="madeJam">
+                <h2>만든 잼</h2>
+                <ul id="jamList"></ul>
+            </div>
+
+            <!-- 하단 버튼 영역 -->
+            <div id="bottomButtons">
+                <button onclick="sellJam()">잼 판매하기</button>
+                <button onclick="bankrupt()">파산하기</button>
+            </div>
         </div>
-        <button id="mixButton">잼 섞기 시작</button>
     </div>
-
-    <div id="madeJam">
-        <h2>만든 잼</h2>
-        <button onclick="sellJam()">잼 판매하기</button>
-        <ul id="jamList"></ul>
-    </div>
-
-    <script>
+<script>
         let debt = 1000000;
         let level = 1;
         let currentXP = 0;
@@ -125,17 +311,17 @@
             canvas: beaker,
             engine: engine,
             options: {
-                width: 300,
-                height: 400,
+                width: beakerContainer.clientWidth,
+                height: beakerContainer.clientHeight,
                 wireframes: false,
                 background: 'transparent' // 캔버스의 배경을 투명하게 설정
             }
         });
 
         // 비커 가장자리 생성
-        let ground = Bodies.rectangle(150, 410, 300, 20, { isStatic: true });
-        let leftWall = Bodies.rectangle(-10, 200, 20, 400, { isStatic: true });
-        let rightWall = Bodies.rectangle(310, 200, 20, 400, { isStatic: true });
+        let ground = Bodies.rectangle(beakerContainer.clientWidth / 2, beakerContainer.clientHeight + 10, beakerContainer.clientWidth, 20, { isStatic: true });
+        let leftWall = Bodies.rectangle(-10, beakerContainer.clientHeight / 2, 20, beakerContainer.clientHeight, { isStatic: true });
+        let rightWall = Bodies.rectangle(beakerContainer.clientWidth + 10, beakerContainer.clientHeight / 2, 20, beakerContainer.clientHeight, { isStatic: true });
         World.add(engine.world, [ground, leftWall, rightWall]);
 
         Engine.run(engine);
@@ -161,7 +347,7 @@
                 if (ingredient.unlocked) {
                     let btn = document.createElement('div');
                     btn.className = 'ingredient';
-                    btn.innerText = `${ingredient.name}\n(₩${ingredient.purchasePrice})`;
+                    btn.innerText = `${ingredient.name}\n₩${ingredient.purchasePrice}`;
                     btn.style.backgroundColor = ingredient.color;
                     btn.onclick = () => buyIngredient(index);
                     storeDiv.appendChild(btn);
@@ -169,52 +355,53 @@
             });
         }
 
-function buyIngredient(index) {
-    // 잼 섞기 중이면 재료 추가 불가
-    if (mixing) {
-        alert("잼을 섞는 중에는 재료를 추가할 수 없습니다!");
-        return;
-    }
-
-    // 빚 증가
-    debt += ingredients[index].purchasePrice;
-    updateDebt();
-
-    // 재료를 바로 비커에 추가
-    let x = Math.random() * 280 + 10; // 비커 내 랜덤 위치
-    let y = 50; // 비커 상단에서 떨어짐
-    addIngredientToBeaker(index, x, y);
-    saveGame();
-}
-
-function addIngredientToBeaker(index, x, y) {
-    let ingredientInstance = {
-        name: ingredients[index].name,
-        index: index,
-        color: ingredients[index].color
-    };
-
-    // 10개의 재료를 비커에 추가
-    for (let i = 0; i < 10; i++) {
-        let offsetX = Math.random() * 20 - 10; // 약간의 X 위치 오프셋
-        let offsetY = Math.random() * 20 - 10; // 약간의 Y 위치 오프셋
-        let ingredientBody = Bodies.circle(x + offsetX, y + offsetY, 10, {
-            restitution: 0.5,
-            friction: 0.5,
-            render: {
-                fillStyle: ingredientInstance.color
+        function buyIngredient(index) {
+            // 잼 섞기 중이면 재료 추가 불가
+            if (mixing) {
+                alert("잼을 섞는 중에는 재료를 추가할 수 없습니다!");
+                return;
             }
-        });
 
-        World.add(engine.world, ingredientBody);
-        beakerIngredients.push({
-            instance: ingredientInstance,
-            body: ingredientBody
-        });
-    }
-}
+            // 빚 증가
+            debt += ingredients[index].purchasePrice;
+            updateDebt();
+
+            // 재료를 바로 비커에 추가
+            let x = Math.random() * beakerContainer.clientWidth * 0.8 + beakerContainer.clientWidth * 0.1; // 비커 내 랜덤 위치
+            let y = 50; // 비커 상단에서 떨어짐
+            addIngredientToBeaker(index, x, y);
+            saveGame();
+        }
+
+        function addIngredientToBeaker(index, x, y) {
+            let ingredientInstance = {
+                name: ingredients[index].name,
+                index: index,
+                color: ingredients[index].color
+            };
+
+            // 10개의 재료를 비커에 추가(크기 5)
+            for (let i = 0; i < 1; i++) {
+                let offsetX = Math.random() * 20 - 10; // 약간의 X 위치 오프셋
+                let offsetY = Math.random() * 20 - 10; // 약간의 Y 위치 오프셋
+                let ingredientBody = Bodies.circle(x + offsetX, y + offsetY, 5, {
+                    restitution: 0.5,
+                    friction: 0.5,
+                    render: {
+                        fillStyle: ingredientInstance.color
+                    }
+                });
+
+                World.add(engine.world, ingredientBody);
+                beakerIngredients.push({
+                    instance: ingredientInstance,
+                    body: ingredientBody
+                });
+            }
+        }
+
         function createMixingBall() {
-            let ball = Bodies.circle(150, 380, 50, {
+            let ball = Bodies.circle(beakerContainer.clientWidth / 2, beakerContainer.clientHeight - 10, 10, {
                 isStatic: true,
                 render: {
                     visible: false
@@ -226,10 +413,10 @@ function addIngredientToBeaker(index, x, y) {
 
         function moveMixingBall(ball) {
             let direction = 1;
-            let speed = 5;
+            let speed = 3;
             let moveInterval = setInterval(() => {
                 Body.translate(ball, { x: speed * direction, y: 0 });
-                if (ball.position.x > 280 || ball.position.x < 10) {
+                if (ball.position.x > beakerContainer.clientWidth * 0.9 || ball.position.x < beakerContainer.clientWidth * 0.1) {
                     direction *= -1;
                 }
             }, 20);
@@ -292,6 +479,7 @@ function addIngredientToBeaker(index, x, y) {
                 return;
             }
             mixing = false;
+            mixButton.innerText = '잼 섞기 시작';
             let mixDuration = Date.now() - mixStartTime;
 
             // 움직임 중지 및 공 제거
@@ -299,7 +487,7 @@ function addIngredientToBeaker(index, x, y) {
             World.remove(engine.world, mixingBall);
 
             // 비커 색상 초기화
-            beakerContainer.style.backgroundColor = '#e6f7ff';
+            beakerContainer.style.backgroundColor = '#e6f7ff'; // 초기 배경색으로 설정
 
             // 잼 품질 결정
             let result = determineJamQuality(mixDuration, requiredMixTime);
@@ -407,9 +595,11 @@ function addIngredientToBeaker(index, x, y) {
             let mixDuration = Date.now() - mixStartTime;
             let progress = mixDuration / requiredMixTime;
 
+            // 비커의 초기 색상 설정
+            let initialColor = { r: 230, g: 247, b: 255 }; // 초기 색상 RGB 값
+
             if (progress <= 1) {
                 // 비커 색상이 초기 색상에서 혼합 색상으로 서서히 변화
-                let initialColor = { r: 230, g: 247, b: 255 }; // 초기 색상 RGB 값
                 let mixedColor = getMixedColor(); // 혼합 색상 RGB 객체
                 let currentColor = {
                     r: Math.floor(initialColor.r + (mixedColor.r - initialColor.r) * progress),
@@ -527,14 +717,6 @@ function addIngredientToBeaker(index, x, y) {
             displayJamList();
             alert(`잼을 모두 판매하여 ₩${earnings}의 수익을 얻었습니다!`);
             saveGame();
-        }
-
-        function repayDebt() {
-            if (debt <= 0) {
-                alert("이미 빚을 모두 상환했습니다!");
-                return;
-            }
-            alert("잼을 판매하여 빚을 상환하세요!");
         }
 
         function bankrupt() {
